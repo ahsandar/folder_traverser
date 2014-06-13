@@ -1,11 +1,11 @@
 require 'cgi'
 
-#run rake html:parse
+#run rake hype:parser
 #install rake gem
 
-namespace :html do
+namespace :hype do
   desc "HTML parsing"
-  task :parse do
+  task :parser do
     full_path = File.expand_path "~/epcdept/"
     log full_path
     # drop(2) to remove . and .. folder
@@ -27,20 +27,25 @@ namespace :html do
     @list.each do |entry|
       path = File.join(dir, entry)
       if Dir.exist? path
-       log "#{entry}"
-       list_files(File.join(path))
+        log "#{entry}"
+        list_files(File.join(path))
       end
     end
-
     log "end of Directory"
     return 0
   end
 
   def match_files(path)
+    print_output(path) do
+      detect_file_size(path)
+      traverse_for_links(path)
+    end
+  end
+
+  def print_output(path, &block)
     puts path
     print_list
-    detect_file_size(path)
-    traverse_for_links(path)
+    block.call if block_given?
     print_linked_files
     print_unlinked_files
   end
@@ -53,38 +58,45 @@ namespace :html do
   def detect_file_size(path)
     dir = File.dirname(path)
     size = @list.map{ |file| [file, file_size(dir,file)]}
+    log "printing list with size"
     puts size.inspect
   end
 
   def file_size(dir, file)
-    "#{File.stat(File.join(dir,file)).size/1024} KB"
+    size = File.stat(File.join(dir,file)).size
+    case
+    when size < kb then "#{size} bytes"
+    when size > kb || size < mb then "#{size/kb} KB"
+    when size > mb then "#{size/mb} MB"
+    else size
+    end
   end
 
   def print_list
-    puts "printing list"
+    log "printing list"
     puts @list.inspect
   end
 
   def print_linked_files
-    puts "printing linked files"
+    log "printing linked files"
     puts @links.inspect
   end
 
   def print_unlinked_files
-    puts "files not linked"
+    log "files not linked"
     @unlinked = @list - @links
     puts @unlinked.inspect
   end
 
-  def regex
-    /\"(\S+\w+\W+(png|pdf|gif|js|htc))\"/
-  end
+  def regex ; /\"(\S+\w+\W+(png|pdf|gif|js|htc))\"/ ; end
 
-  def escape
-    /{|}|,/
-  end
+ def log(val) ; puts "#{"#"*20} #{val} #{"#"*20} " ; end
 
-   def log(val)
-     puts "#{"*"*20} #{val} #{"*"*20} "
-   end
+  def kb ; 1024 ; end
+
+  def mb ; kb**2 ; end
+
+  def escape ; /{|}|,/ ; end
+
+
 end
